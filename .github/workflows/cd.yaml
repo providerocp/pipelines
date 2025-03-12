@@ -31,11 +31,11 @@ jobs:
     steps:
       - name: Capitalização env repository
         run: |
-          repository_lower="${{ inputs.repository }}"
-          repository_upper=$(echo "$repository_lower" | tr '[:lower:]' '[:upper:]')
+          #repository_lower="${{ inputs.repository }}"
+          #repository_upper=$(echo "$repository_lower" | tr '[:lower:]' '[:upper:]')
 
-          echo "Valor em maiúsculas: $repository_upper"      
-          echo "repository_upper=`echo $repository_upper `" >> $GITHUB_ENV    
+          #echo "Valor em maiúsculas: $repository_upper"      
+          echo "repository_upper=`echo ${{ inputs.repository }}^ `" >> $GITHUB_ENV    
           echo $repository_upper           
 
       - name: Install .Net 8
