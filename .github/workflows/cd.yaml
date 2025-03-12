@@ -35,7 +35,7 @@ jobs:
           repository_upper=$(echo "$repository_lower" | tr '[:lower:]' '[:upper:]')
 
           echo "Valor em maiúsculas: $repository_upper"      
-          echo "repository_upper=${{ vars.repository_upper }}" >> $GITHUB_ENV          
+          echo "repository_upper=`echo $repository_upper `" >> $GITHUB_ENV              
 
       - name: Install .Net 8
         uses: actions/setup-dotnet@v2
@@ -75,20 +75,20 @@ jobs:
 
       - name: Pack
         run: |
-          dotnet pack src/BM.${repository_upper}.Abstractions/BM.${repository_upper}.Abstractions.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-          dotnet pack src/BM.${repository_upper}.Client/BM.${repository_upper}.Client.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-          dotnet pack src/BM.${repository_upper}.Provider/BM.${repository_upper}.Provider.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+          dotnet pack src/BM.$repository_upper.Abstractions/BM.$repository_upper.Abstractions.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+          dotnet pack src/BM.$repository_upper.Client/BM.$repository_upper.Client.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+          dotnet pack src/BM.$repository_upper.Provider/BM.$repository_upper.Provider.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
 
       - name: Push
         run: |
-          dotnet nuget push src/BM.${repository_upper}.Abstractions/bin/Release/BM.${repository_upper}.Abstractions.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
-          dotnet nuget push src/BM.${repository_upper}.Client/bin/Release/BM.${repository_upper}.Client.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
-          dotnet nuget push src/BM.${repository_upper}.Provider/bin/Release/BM.${repository_upper}.Provider.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
+          dotnet nuget push src/BM.$repository_upper.Abstractions/bin/Release/BM.$repository_upper.Abstractions.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
+          dotnet nuget push src/BM.$repository_upper.Client/bin/Release/BM.$repository_upper.Client.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
+          dotnet nuget push src/BM.$repository_upper.Provider/bin/Release/BM.$repository_upper.Provider.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Publish Server binaries
-        run: dotnet publish -c Release -o publish --no-build src/BM.${repository_upper}.Host
+        run: dotnet publish -c Release -o publish --no-build src/BM.$repository_upper.Host
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
@@ -99,7 +99,7 @@ jobs:
 
       - name: Build Container Image
         run: |
-          docker build -f src/BM.${repository_upper}.Host/Dockerfile -t ghcr.io/pipabingomaker/${{ inputs.repository }}:${{ steps.gitversion.outputs.SemVer }} ./publish
+          docker build -f src/BM.$repository_upper.Host/Dockerfile -t ghcr.io/pipabingomaker/${{ inputs.repository }}:${{ steps.gitversion.outputs.SemVer }} ./publish
           docker push ghcr.io/pipabingomaker/${{ inputs.repository }}:${{ steps.gitversion.outputs.SemVer }}
 
       - name: Create Release
