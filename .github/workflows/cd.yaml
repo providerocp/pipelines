@@ -1,0 +1,182 @@
+name: Build and Deploy Application
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: "Nome do repositório"
+        required: true
+        type: string  
+      environment:
+        description: "Ambiente de deploy"
+        required: true
+        type: string
+        default: 'dev'  
+      overlay:
+        description: "Caminho do overlay"
+        required: true
+        type: string
+      dotnet-version:
+        description: "Versão do Ubuntu [ubuntu-latest]"
+        required: true
+        type: string        
+        default: "ubuntu-latest"
+    secrets:
+      ENTERPRISE_GITHUB_TOKEN:
+        required: true
+      GH_TOKEN:
+        required: false
+
+
+jobs:
+  build:
+    runs-on: [ubuntu-latest]
+    outputs:
+      image-tag: ${{ steps.gitversion.outputs.SemVer }}
+
+    steps:
+      - name: Capitalização env repository
+        run: |
+          repository_lower="${{ inputs.repository }}"
+          repository_upper=$(echo "$repository_lower" | tr '[:lower:]' '[:upper:]')
+
+          echo "Valor em maiúsculas: $repository_upper"      
+          echo "repository_upper=${{ vars.repository_upper }}" >> $GITHUB_ENV          
+
+      - name: Install .Net 8
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: "8.0.x"
+          source-url: https://nuget.pkg.github.com/pipabingomaker/index.json
+        env:
+          NUGET_AUTH_TOKEN: ${{  secrets.ENTERPRISE_GITHUB_TOKEN  }}
+
+      - name: Install GitVersion
+        uses: gittools/actions/gitversion/setup@v0.10.2
+        with:
+          versionSpec: "5.x"
+
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Determine Version
+        id: gitversion
+        uses: gittools/actions/gitversion/execute@v0.10.2
+        with:
+          useConfigFile: true
+          configFilePath: ./GitVersion.yml
+
+      - name: Version
+        run: |
+          echo Building ${{ steps.gitversion.outputs.SemVer }}
+          echo "::set-output name=image-tag::${{ steps.gitversion.outputs.SemVer }}"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore --no-incremental /p:Version=${{ steps.gitversion.outputs.AssemblySemVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.InformationalVersion }}
+
+      - name: Pack
+        run: |
+          dotnet pack src/BM.$repository_upper.Abstractions/BM.$repository_upper.Abstractions.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+          dotnet pack src/BM.$repository_upper.Client/BM.$repository_upper.Client.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+          dotnet pack src/BM.$repository_upper.Provider/BM.$repository_upper.Provider.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+
+      - name: Push
+        run: |
+          dotnet nuget push src/BM.$repository_upper.Abstractions/bin/Release/BM.$repository_upper.Abstractions.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
+          dotnet nuget push src/BM.$repository_upper.Client/bin/Release/BM.$repository_upper.Client.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
+          dotnet nuget push src/BM.$repository_upper.Provider/bin/Release/BM.$repository_upper.Provider.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s  https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Publish Server binaries
+        run: dotnet publish -c Release -o publish --no-build src/BM.$repository_upper.Host
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Container Image
+        run: |
+          docker build -f src/BM.$repository_upper.Host/Dockerfile -t ghcr.io/pipabingomaker/${{ inputs.repository }}:${{ steps.gitversion.outputs.SemVer }} ./publish
+          docker push ghcr.io/pipabingomaker/${{ inputs.repository }}:${{ steps.gitversion.outputs.SemVer }}
+
+      - name: Create Release
+        uses: actions/github-script@v6
+        with:
+          script: |
+            github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: '${{ steps.gitversion.outputs.SemVer }}',              
+              name: 'Release ${{ steps.gitversion.outputs.SemVer }}',
+              draft: false,
+              prerelease: false,
+              generate_release_notes: true
+            })
+
+  deploy-gitops:
+    runs-on: ubuntu-latest
+    outputs:
+      image-tag: $${{ steps.set_var.outputs.image-tag }}
+    permissions:
+      contents: 'read'
+      id-token: 'write'
+    needs: [build]
+
+    steps:
+      - uses: actions/checkout@v2
+
+      - name: Clone GitOps repository
+        run: |
+          git clone https://${{ secrets.ENTERPRISE_GITHUB_TOKEN }}@github.com/providerocp/gitops-apps.git
+
+      - name: Update image tag
+        run: |
+          if [ -d "gitops-apps" ]; then
+            cd gitops-apps
+            sed -i "s#\(${{ inputs.repository }}:\).*#\1${{ needs.build.outputs.image-tag }}#" apps/overlay/${{ inputs.environment }}/bm-${{ inputs.repository }}/app.yaml
+          else
+            echo "Diretório gitops-apps não existe, não foi possível atualizar a imagem."
+            exit 1
+          fi
+
+      - name: Configure Git
+        run: |
+          if [ -d "gitops-apps" ]; then
+            cd gitops-apps
+            git config --global user.name 'github-actions[bot]'
+            git config --global user.email 'github-actions[bot]@users.noreply.github.com'
+          else
+            echo "Diretório gitops-apps não existe, não foi possível configurar o git."
+            exit 1
+          fi        
+
+      - name: Commit changes
+        run: |
+          if [ -d "gitops-apps" ]; then
+            cd gitops-apps
+            git add apps/overlay/${{ inputs.environment }}/bm-${{ inputs.repository }}/app.yaml
+            git commit -m "Update image tag to ${{ needs.build.outputs.image-tag }} - MS: bm-${{ inputs.repository }} Dev"
+          else
+            echo "Diretório gitops-apps não existe, não foi possível fazer o commit."
+            exit 1
+          fi          
+
+      - name: Push/Deploy changes
+        run: |
+          if [ -d "gitops-apps" ]; then
+            cd gitops-apps
+            git push
+            sleep 5
+          else
+            echo "Diretório gitops-apps não existe, não foi possível fazer o push."
+            exit 1
+          fi           
