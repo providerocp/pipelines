@@ -35,9 +35,9 @@ jobs:
           #repository_upper=$(echo "$repository_lower" | tr '[:lower:]' '[:upper:]')
 
           #echo "Valor em maiúsculas: $repository_upper"      
-          echo "repository_upper=`echo $repository_lower^ `" >> $GITHUB_ENV    
+          echo "repository_upper=`echo ${repository_lower^} `" >> $GITHUB_ENV    
           echo $repository_upper   
-          echo $repository_lower^     
+          echo ${repository_lower^}
 
       - name: Install .Net 8
         uses: actions/setup-dotnet@v2
