@@ -35,7 +35,8 @@ jobs:
           repository_upper=$(echo "$repository_lower" | tr '[:lower:]' '[:upper:]')
 
           echo "Valor em maiúsculas: $repository_upper"      
-          echo "repository_upper=`echo $repository_upper `" >> $GITHUB_ENV              
+          echo "repository_upper=`echo $repository_upper `" >> $GITHUB_ENV    
+          echo $repository_upper           
 
       - name: Install .Net 8
         uses: actions/setup-dotnet@v2
@@ -75,6 +76,7 @@ jobs:
 
       - name: Pack
         run: |
+          echo $repository_upper 
           dotnet pack src/BM.$repository_upper.Abstractions/BM.$repository_upper.Abstractions.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
           dotnet pack src/BM.$repository_upper.Client/BM.$repository_upper.Client.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
           dotnet pack src/BM.$repository_upper.Provider/BM.$repository_upper.Provider.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
