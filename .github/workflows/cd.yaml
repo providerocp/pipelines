@@ -11,16 +11,10 @@ on:
         description: "Ambiente de deploy"
         required: true
         type: string
-        default: 'dev'  
-      overlay:
-        description: "Caminho do overlay"
-        required: true
-        type: string
       dotnet-version:
-        description: "Versão do Ubuntu [ubuntu-latest]"
+        description: "Versão do DotNet"
         required: true
         type: string        
-        default: "ubuntu-latest"
     secrets:
       ENTERPRISE_GITHUB_TOKEN:
         required: true
@@ -46,7 +40,7 @@ jobs:
       - name: Install .Net 8
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: "8.0.x"
+          dotnet-version: ${{ inputs.dotnet-version }}
           source-url: https://nuget.pkg.github.com/pipabingomaker/index.json
         env:
           NUGET_AUTH_TOKEN: ${{  secrets.ENTERPRISE_GITHUB_TOKEN  }}
