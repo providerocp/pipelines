@@ -11,6 +11,11 @@ on:
         description: "Ambiente de deploy"
         required: true
         type: string
+      current_pr_number:
+        description: "ID do PR atual"
+        required: false
+        type: number   
+        default: 0        
     secrets:
       ENTERPRISE_GITHUB_TOKEN:
         required: true
@@ -19,6 +24,41 @@ on:
 
 
 jobs:
+  remove-labels:
+    runs-on: ${{ inputs.os_version }}
+    if: contains(github.event.label.name, 'deploy development') || ${{ inputs.current_pr_number == 0 }}
+
+    steps:
+      - name: Remover labels "deploy development" de outros PRs
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CURRENT_PR_NUMBER: ${{ github.event.number }}
+        run: |
+          # Define o repositório atual
+          repo="${{ github.repository }}"
+
+          echo "Verificando PRs abertas para o repositório: $repo"
+          
+          # Obtem todas as PRs abertas com seus labels
+          response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+                            -H "Accept: application/vnd.github.v3+json" \
+                            "https://api.github.com/repos/$repo/pulls?state=open")
+          
+          # Filtra PRs que possuem a label "deploy development" e que não são o PR atual
+          echo "$response" | jq -r --arg CURRENT_PR_NUMBER "${{ inputs.current_pr_number }}" '
+              .[] | select(.number != (${{ inputs.current_pr_number }} | tonumber)) |
+              select(.labels[].name == "deploy development") | .number
+          ' | while read -r pr_number; do
+              echo "Removendo label 'deploy development' do PR #$pr_number no repositório $repo"
+
+              # Remove a label "deploy development" do PR
+              curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  "https://api.github.com/repos/$repo/issues/$pr_number/labels/deploy%20development"
+              
+              echo "Label removida com sucesso para o PR #$pr_number"
+          done
+
   build:
     runs-on: [ubuntu-latest]
     outputs:
