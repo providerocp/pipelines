@@ -40,7 +40,7 @@ jobs:
           echo "Verificando PRs abertas para o repositório: $repo"
           
           # Obtem todas as PRs abertas com seus labels
-          response=$(curl -s -H "Authorization: token $GH_TOKEN" \
+          response=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
                             -H "Accept: application/vnd.github.v3+json" \
                             "https://api.github.com/repos/$repo/pulls?state=open")
 
@@ -54,7 +54,7 @@ jobs:
               echo "Removendo label 'deploy development' do PR #$pr_number no repositório $repo"
 
               # Remove a label "deploy development" do PR
-              curl -s -X DELETE -H "Authorization: token $GH_TOKEN" \
+              curl -s -X DELETE -H "Authorization: token $GITHUB_TOKEN" \
                   -H "Accept: application/vnd.github.v3+json" \
                   "https://api.github.com/repos/$repo/issues/$pr_number/labels/deploy%20development"
               
