@@ -61,7 +61,8 @@ jobs:
 
   tag_and_release:
     # Only run if the PR targets main and has one of the deploy labels
-    if: github.base_ref == 'main' && (github.event.label.name == 'deploy dev' || github.event.label.name == 'deploy stg' || github.event.label.name == 'deploy prod')
+    if: (github.event.label.name == 'deploy dev' || github.event.label.name == 'deploy stg' || github.event.label.name == 'deploy prod')
+    #if: github.base_ref == 'main' && (github.event.label.name == 'deploy dev' || github.event.label.name == 'deploy stg' || github.event.label.name == 'deploy prod')
     runs-on: ubuntu-latest
     permissions:
       contents: write # Needed to create tags/releases
