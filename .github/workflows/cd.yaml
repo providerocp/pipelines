@@ -105,7 +105,7 @@ jobs:
           # Bumps patch version if no minor/major bump detected based on commits
           noVersionBumpBehavior: patch
           # Add fallback tag for the first run when no previous tags exist
-          fallbackTag: 0.0.0
+          fallbackTag: 0.15.0-dev.2
 
       - name: Prepare Tag Components
         id: tag_components
