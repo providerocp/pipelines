@@ -26,8 +26,6 @@ on:
 jobs:
   remove-labels:
     runs-on: ubuntu-latest
-    if: contains(github.event.label.name, 'deploy development') || ${{ inputs.current_pr_number == 0 }}
-
     steps:
       - name: Remover labels "deploy development" de outros PRs
         env:
@@ -46,18 +44,166 @@ jobs:
 
           echo $response
           
-          # Filtra PRs que possuem a label "deploy development" e que não são o PR atual
+          # Filtra PRs que possuem a label "deploy dev" e que não são o PR atual
           echo "$response" | jq -r --arg CURRENT_PR_NUMBER "${{ inputs.current_pr_number }}" '
               .[] | select(.number != (${{ inputs.current_pr_number }} | tonumber)) |
-              select(.labels[].name == "deploy development") | .number
+              select(.labels[].name == "deploy dev") | .number
           ' | while read -r pr_number; do
-              echo "Removendo label 'deploy development' do PR #$pr_number no repositório $repo"
+              echo "Removendo label 'deploy dev' do PR #$pr_number no repositório $repo"
 
-              # Remove a label "deploy development" do PR
+              # Remove a label "deploy dev" do PR
               curl -s -X DELETE -H "Authorization: token $ENTERPRISE_GITHUB_TOKEN" \
                   -H "Accept: application/vnd.github.v3+json" \
-                  "https://api.github.com/repos/$repo/issues/$pr_number/labels/deploy%20development"
+                  "https://api.github.com/repos/$repo/issues/$pr_number/labels/deploy%20dev"
               
               echo "Label removida com sucesso para o PR #$pr_number"
           done
 
+  tag_and_release:
+    # Only run if the PR targets main and has one of the deploy labels
+    if: github.base_ref == 'main' && (github.event.label.name == 'deploy dev' || github.event.label.name == 'deploy stg' || github.event.label.name == 'deploy prod')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # Needed to create tags/releases
+      pull-requests: read # Needed to read PR details
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          # Fetch all history and tags for semver and changelog generation
+          fetch-depth: 0
+          # Persist credentials for tagging/release
+          persist-credentials: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Use a recent LTS version
+
+      - name: Extract Label Info
+        id: label_info
+        run: |
+          LABEL_NAME="${{ github.event.label.name }}"
+          # Extract env (dev, stg, prod) from "deploy env"
+          ENV=$(echo "$LABEL_NAME" | awk '{print $2}')
+          if [[ -z "$ENV" || ! "$ENV" =~ ^(dev|stg|prod)$ ]]; then
+            echo "::error::Could not extract valid environment (dev, stg, prod) from label '$LABEL_NAME'"
+            exit 1
+          fi
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+          echo "Detected Label: $LABEL_NAME, Environment: $ENV"
+
+      - name: Get Next SemVer Version
+        id: semver
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ secrets.ENTERPRISE_GITHUB_TOKEN }}
+          branch: main # Calculate based on commits merged to main
+          # Handle cases where no bump is detected (e.g., only chore commits)
+          # Bumps patch version if no minor/major bump detected based on commits
+          noVersionBumpBehavior: patch
+
+      - name: Prepare Tag Components
+        id: tag_components
+        run: |
+          SEMVER="${{ steps.semver.outputs.nextStrict }}" # e.g., 0.1.0
+          BRANCH_NAME_RAW="${{ github.head_ref }}" # e.g., feat/PB-1-new-feature
+          # Sanitize branch name: replace / with _, remove invalid chars
+          BRANCH_NAME_SANITIZED=$(echo "$BRANCH_NAME_RAW" | sed 's|/|_|g' | sed 's|[^a-zA-Z0-9_.-]||g')
+          ENV="${{ steps.label_info.outputs.env }}" # dev, stg, or prod
+          CURRENT_DATE=$(date +'%Y%m%d')
+
+          echo "semver=$SEMVER" >> $GITHUB_OUTPUT
+          echo "branch_name=$BRANCH_NAME_SANITIZED" >> $GITHUB_OUTPUT
+          echo "env=$ENV" >> $GITHUB_OUTPUT
+          echo "date=$CURRENT_DATE" >> $GITHUB_OUTPUT
+          echo "SemVer Base: $SEMVER, Branch: $BRANCH_NAME_SANITIZED, Env: $ENV, Date: $CURRENT_DATE"
+
+      - name: Calculate Incremental Build Number (for dev/stg)
+        id: build_number
+        # Only run for dev or stg
+        if: steps.label_info.outputs.env == 'dev' || steps.label_info.outputs.env == 'stg'
+        run: |
+          # Fetch all tags again to be absolutely sure we have the latest history
+          git fetch --tags --force
+          ENV="${{ steps.label_info.outputs.env }}"
+          CURRENT_DATE="${{ steps.tag_components.outputs.date }}"
+          # Pattern: *.<ENV>+<DATE>.ci.X
+          # List tags matching the env and date, extract the ci number, sort numerically, get the last one
+          echo "Looking for tags matching pattern: *.$ENV+$CURRENT_DATE.ci.*"
+          # List tags, filter with grep for better pattern matching, extract number, sort, get last
+          LAST_CI_NUM=$(git tag | grep -E "^.*\.$ENV\+$CURRENT_DATE\.ci\.[0-9]+$" | sed -n "s/.*\.ci\.\([0-9]*\)$/\1/p" | sort -n | tail -n 1)
+          echo "Last CI number found for $ENV on $CURRENT_DATE: '$LAST_CI_NUM'"
+          # If no previous tag found for today/env, start with 1, otherwise increment
+          if [ -z "$LAST_CI_NUM" ]; then
+            NEXT_CI_NUM=1
+          else
+            # Ensure it's treated as a number
+            NEXT_CI_NUM=$((LAST_CI_NUM + 1))
+          fi
+          echo "Next CI number: $NEXT_CI_NUM"
+          echo "ci_num=$NEXT_CI_NUM" >> $GITHUB_OUTPUT
+
+      - name: Construct Final Tag
+        id: final_tag
+        run: |
+          SEMVER="${{ steps.tag_components.outputs.semver }}"
+          ENV="${{ steps.tag_components.outputs.env }}"
+
+          if [ "$ENV" == "prod" ]; then
+            FINAL_TAG="v$SEMVER" # Simple SemVer for prod: v0.1.0
+          else
+            # Format: 0.1.0-pipa.feat_PB-1.dev+20250428.ci.1
+            BRANCH_NAME="${{ steps.tag_components.outputs.branch_name }}"
+            CURRENT_DATE="${{ steps.tag_components.outputs.date }}"
+            CI_NUM="${{ steps.build_number.outputs.ci_num }}" # Only set for dev/stg
+            # Ensure CI_NUM is not empty if needed for dev/stg
+            if [ -z "$CI_NUM" ]; then
+              echo "::error::CI Number not calculated for dev/stg environment."
+              exit 1
+            fi
+            FINAL_TAG="$SEMVER-pipa.$BRANCH_NAME.$ENV+$CURRENT_DATE.ci.$CI_NUM"
+          fi
+          echo "tag=$FINAL_TAG" >> $GITHUB_OUTPUT
+          echo "Final Tag Constructed: $FINAL_TAG"
+
+      - name: Generate Changelog
+        id: changelog
+        run: |
+          npm install -g conventional-changelog-cli conventional-changelog-conventionalcommits
+          # Get the absolute latest tag from the repository
+          LATEST_TAG=$(git describe --tags --abbrev=0 || echo "")
+          echo "Generating changelog since tag: '$LATEST_TAG' (if any)"
+
+          # Generate changelog content using conventionalcommits preset.
+          # The range should be from the LATEST_TAG to HEAD (current commit on the branch)
+          CHANGELOG_ARGS=('-p' 'conventionalcommits' '-r' '0')
+          if [ -n "$LATEST_TAG" ]; then
+            CHANGELOG_ARGS+=('--from' "$LATEST_TAG")
+          fi
+          CHANGELOG_CONTENT=$(conventional-changelog "${CHANGELOG_ARGS[@]}")
+
+          # Check if changelog content is empty (e.g., only chore/ci/test commits since last tag)
+          if [ -z "$CHANGELOG_CONTENT" ]; then
+            echo "No relevant commits found since last tag for changelog."
+            CHANGELOG_CONTENT="No user-facing changes detected since ${LATEST_TAG:-start of history}."
+          fi
+
+          # Use a delimiter technique for multiline output storage
+          echo "changelog_body<<EOF" >> $GITHUB_OUTPUT
+          echo "$CHANGELOG_CONTENT" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
+          echo "Changelog generated."
+
+      - name: Create GitHub Release
+        uses: ncipollo/release-action@v1
+        with:
+          tag: ${{ steps.final_tag.outputs.tag }}
+          name: Release ${{ steps.final_tag.outputs.tag }}
+          body: ${{ steps.changelog.outputs.changelog_body }}
+          prerelease: ${{ steps.label_info.outputs.env != 'prod' }} # Mark dev/stg as pre-release
+          token: ${{ secrets.ENTERPRISE_GITHUB_TOKEN }}
+          # Set makeLatest based on environment? 'true' for prod, 'false' for dev/stg?
+          # Or let GitHub handle 'latest' automatically based on semver.
+          # makeLatest: ${{ steps.label_info.outputs.env == 'prod' }}
