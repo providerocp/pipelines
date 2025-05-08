@@ -262,9 +262,17 @@ jobs:
 
       - name: Build Container Image
         run: |
-          docker build -f src/BM.Account.Host/Dockerfile -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} ./publish
+          docker build -f src/BM.Account.Host/Dockerfile \
+          -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} \
+          --build-arg PACKAGE_VERSION=${{ steps.gitversion.outputs.SemVer }} \
+          --build-arg GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+          --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+          --build-arg ASSEMBLY_VERSION=${{ steps.gitversion.outputs.AssemblySemVer }} \
+          --build-arg INFORMATIONAL_VERSION=${{ steps.gitversion.outputs.InformationalVersion }} .
+
+          #docker build -f src/BM.Account.Host/Dockerfile -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} ./publish
           docker push ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }}
-          
+
   deploy-gitops:
     runs-on: ubuntu-latest
     needs: [build] # Depende do job de build
