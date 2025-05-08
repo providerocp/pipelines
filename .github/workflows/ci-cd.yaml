@@ -242,11 +242,11 @@ jobs:
 
       - name: Push
         run: |
-          dotnet nuget push src/BM.Account.Abstractions/bin/Release/BM.Account.Abstractions.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
-          dotnet nuget push src/BM.Account.Client/bin/Release/BM.Account.Client.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
-          dotnet nuget push src/BM.Account.Data/bin/Release/BM.Account.Data.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
-          dotnet nuget push src/BM.Account.Events/bin/Release/BM.Account.Events.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
-          dotnet nuget push src/BM.Account.Package/bin/Release/BM.Account.Packets.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${GITHUB_TOKEN}
+          dotnet nuget push src/BM.Account.Abstractions/bin/Release/BM.Account.Abstractions.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+          dotnet nuget push src/BM.Account.Client/bin/Release/BM.Account.Client.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+          dotnet nuget push src/BM.Account.Data/bin/Release/BM.Account.Data.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+          dotnet nuget push src/BM.Account.Events/bin/Release/BM.Account.Events.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+          dotnet nuget push src/BM.Account.Package/bin/Release/BM.Account.Packets.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
@@ -265,8 +265,8 @@ jobs:
           docker build -f src/BM.Account.Host/Dockerfile \
           -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} \
           --build-arg PACKAGE_VERSION=${{ steps.gitversion.outputs.SemVer }} \
-          --build-arg GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
-          --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GITHUB_TOKEN }} \
+          --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
+          --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ASSEMBLY_VERSION=${{ steps.gitversion.outputs.AssemblySemVer }} \
           --build-arg INFORMATIONAL_VERSION=${{ steps.gitversion.outputs.InformationalVersion }} .
 
