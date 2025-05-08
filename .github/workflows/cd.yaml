@@ -204,9 +204,7 @@ jobs:
         with:
           tag: ${{ steps.final_tag.outputs.tag }}
           name: Release ${{ steps.final_tag.outputs.tag }}
-          generate_release_notes: true
+          generate_release_notes: true # Use GitHub's auto-generated release notes
           prerelease: ${{ steps.label_info.outputs.env != 'prod' }} # Mark dev/stg as pre-release
           token: ${{ secrets.GH_TOKEN }}
-          # Set makeLatest based on environment? 'true' for prod, 'false' for dev/stg?
-          # Or let GitHub handle 'latest' automatically based on semver.
-          # makeLatest: ${{ steps.label_info.outputs.env == 'prod' }}
+      
