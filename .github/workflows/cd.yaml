@@ -17,8 +17,6 @@ on:
         type: number   
         default: 0        
     secrets:
-      ENTERPRISE_GITHUB_TOKEN:
-        required: true
       GH_TOKEN:
         required: false
 
