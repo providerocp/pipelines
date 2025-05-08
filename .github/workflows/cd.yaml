@@ -205,6 +205,7 @@ jobs:
           tag: ${{ steps.final_tag.outputs.tag }}
           name: Release ${{ steps.final_tag.outputs.tag }}
           body: ${{ steps.changelog.outputs.changelog_body }}
+          generate_release_notes: true
           prerelease: ${{ steps.label_info.outputs.env != 'prod' }} # Mark dev/stg as pre-release
           token: ${{ secrets.GH_TOKEN }}
           # Set makeLatest based on environment? 'true' for prod, 'false' for dev/stg?
