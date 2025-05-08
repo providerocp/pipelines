@@ -107,7 +107,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           branch: main
           noVersionBumpBehavior: patch
-          fallbackTag: 0.0.0
+          fallbackTag: 0.15.0-pipa.teste-label.dev+20250508.ci.4
 
       - name: Prepare Tag Components
         id: tag_components
