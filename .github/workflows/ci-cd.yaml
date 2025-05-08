@@ -82,8 +82,17 @@ jobs:
           echo "env=$ENV_FROM_INPUT" >> $GITHUB_OUTPUT
           echo "Workflow triggered for environment: $ENV_FROM_INPUT"
 
+      - name: Check for Existing Tags
+        id: check_tags
+        run: |
+          if [ "$(git tag | wc -l)" -eq 0 ]; then
+            echo "has_no_tags=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_no_tags=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Create Initial Tag 0.0.0 if no tags exist
-        if: "$(git tag | wc -l) == 0"
+        if: steps.check_tags.outputs.has_no_tags == 'true'
         run: |
           echo "No tags found. Creating initial tag 0.0.0"
           git tag 0.0.0
