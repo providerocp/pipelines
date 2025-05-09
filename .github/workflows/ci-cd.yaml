@@ -226,32 +226,32 @@ jobs:
         run: |
           echo Building ${{ steps.gitversion.outputs.SemVer }}
 
-      - name: Restore
-        run: dotnet restore
+      # - name: Restore
+      #   run: dotnet restore
 
-      - name: Build
-        run: dotnet build -c Release --no-restore --no-incremental /p:Version=${{ steps.gitversion.outputs.AssemblySemVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.InformationalVersion }}
+      # - name: Build
+      #   run: dotnet build -c Release --no-restore --no-incremental /p:Version=${{ steps.gitversion.outputs.AssemblySemVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.InformationalVersion }}
 
-      - name: Pack
-        run: |
-          dotnet pack src/BM.Account.Abstractions/BM.Account.Abstractions.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-          dotnet pack src/BM.Account.Client/BM.Account.Client.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-          dotnet pack src/BM.Account.Data/BM.Account.Data.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-          dotnet pack src/BM.Account.Events/BM.Account.Events.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-          dotnet pack src/BM.Account.Package/BM.Account.Packets.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+      # - name: Pack
+      #   run: |
+      #     dotnet pack src/BM.Account.Abstractions/BM.Account.Abstractions.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+      #     dotnet pack src/BM.Account.Client/BM.Account.Client.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+      #     dotnet pack src/BM.Account.Data/BM.Account.Data.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+      #     dotnet pack src/BM.Account.Events/BM.Account.Events.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
+      #     dotnet pack src/BM.Account.Package/BM.Account.Packets.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
 
-      - name: Push
-        run: |
-          dotnet nuget push src/BM.Account.Abstractions/bin/Release/BM.Account.Abstractions.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-          dotnet nuget push src/BM.Account.Client/bin/Release/BM.Account.Client.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-          dotnet nuget push src/BM.Account.Data/bin/Release/BM.Account.Data.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-          dotnet nuget push src/BM.Account.Events/bin/Release/BM.Account.Events.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-          dotnet nuget push src/BM.Account.Package/bin/Release/BM.Account.Packets.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
+      # - name: Push
+      #   run: |
+      #     dotnet nuget push src/BM.Account.Abstractions/bin/Release/BM.Account.Abstractions.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+      #     dotnet nuget push src/BM.Account.Client/bin/Release/BM.Account.Client.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+      #     dotnet nuget push src/BM.Account.Data/bin/Release/BM.Account.Data.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+      #     dotnet nuget push src/BM.Account.Events/bin/Release/BM.Account.Events.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+      #     dotnet nuget push src/BM.Account.Package/bin/Release/BM.Account.Packets.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
+      #   env:
+      #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: Publish Server binaries
-        run: dotnet publish -c Release -o publish --no-build src/BM.Account.Host
+      # - name: Publish Server binaries
+      #   run: dotnet publish -c Release -o publish --no-build src/BM.Account.Host
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
