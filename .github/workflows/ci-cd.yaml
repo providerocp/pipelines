@@ -303,7 +303,7 @@ jobs:
           TARGET_GITOPS_DIR: "gitops_repo_checkout"
         run: |
           cd "$TARGET_GITOPS_DIR"
-          APP_MANIFEST_FILE="apps/overlay/${{ inputs.environment }}/bm-${{ inputs.repository }}/app.yaml"
+          APP_MANIFEST_FILE="aws/apps/overlay/${{ inputs.environment }}/bm-${{ inputs.repository }}/app.yaml"
           if [ ! -f "$APP_MANIFEST_FILE" ]; then echo "::error::Manifest $APP_MANIFEST_FILE not found."; exit 1; fi
           # Usar a tag extraída (sem o nome da imagem/registry)
           sed -i -E "s#(${{ inputs.repository }}:)([^ ]+)#\1$IMAGE_TAG_FOR_GITOPS_UPDATE#" "$APP_MANIFEST_FILE"
@@ -323,7 +323,7 @@ jobs:
           TARGET_GITOPS_DIR: "gitops_repo_checkout"
         run: |
           cd "$TARGET_GITOPS_DIR"
-          APP_MANIFEST_FILE_RELATIVE_PATH="apps/overlay/${{ inputs.environment }}/bm-${{ inputs.repository }}/app.yaml"
+          APP_MANIFEST_FILE_RELATIVE_PATH="aws/apps/overlay/${{ inputs.environment }}/bm-${{ inputs.repository }}/app.yaml"
           git add "$APP_MANIFEST_FILE_RELATIVE_PATH"
           if git diff --staged --quiet; then
             echo "No changes to commit in GitOps repo."
