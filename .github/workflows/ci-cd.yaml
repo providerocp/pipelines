@@ -208,6 +208,9 @@ jobs:
       semver_base_version: ${{ needs.tag_and_release.outputs.semver_base }}
 
     steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
       - name: Install .Net 6
         uses: actions/setup-dotnet@v2
         with:
