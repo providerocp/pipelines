@@ -56,6 +56,7 @@ jobs:
     outputs:
       simplified_image_tag: ${{ steps.construct_simplified_tag.outputs.image_tag }}
       full_release_tag: ${{ steps.final_tag.outputs.tag }}
+      docker_tag_sanitized: ${{ steps.sanitize_docker_tag.outputs.docker_tag }} # Tag sanitizada para Docker
       # Adicionando o semver base como output para o job de build, caso precise para AssemblyVersion
       semver_base: ${{ steps.tag_components.outputs.semver }}
     steps:
@@ -152,6 +153,16 @@ jobs:
           fi
           echo "tag=$FINAL_TAG_VALUE" >> $GITHUB_OUTPUT
 
+      - name: Sanitize Tag for Docker (replace + with -)
+        id: sanitize_docker_tag
+        if: steps.final_tag.outputs.tag != ''
+        run: |
+          FULL_TAG="${{ steps.final_tag.outputs.tag }}"
+          # Replace '+' with '-' for Docker compatibility
+          # Also ensure no leading 'v' if present (for prod tags)
+          SANITIZED_TAG=$(echo "$FULL_TAG" | sed 's/^+v//' | sed 's/+/-/g')
+          echo "docker_tag=$SANITIZED_TAG" >> $GITHUB_OUTPUT
+
       - name: Create GitHub Release
         uses: actions/github-script@v6
         with:
@@ -191,7 +202,7 @@ jobs:
     # Só executa se a tag simplificada foi gerada (ambientes dev/stg)
     if: needs.tag_and_release.outputs.simplified_image_tag != '' && (inputs.environment == 'dev' || inputs.environment == 'stg')
     outputs:
-      docker_image_with_tag: ghcr.io/${{ github.repository_owner }}/${{ inputs.repository }}:${{ needs.tag_and_release.outputs.full_release_tag }}
+      docker_image_with_tag: ghcr.io/${{ github.repository_owner }}/${{ inputs.repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
       # Output do semver base para usar no AssemblyVersion se necessário, ou a tag completa para InformationalVersion
       image_tag_version: ${{ needs.tag_and_release.outputs.simplified_image_tag }}
       semver_base_version: ${{ needs.tag_and_release.outputs.semver_base }}
@@ -215,7 +226,7 @@ jobs:
       - name: Build Container Image
         run: |
           docker build -f src/BM.Account.Host/Dockerfile \
-          -t ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.full_release_tag }} \
+          -t ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
           --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
@@ -223,7 +234,7 @@ jobs:
           --build-arg INFORMATIONAL_VERSION=${{ steps.gitversion.outputs.InformationalVersion }} .
 
           #docker build -f src/BM.Account.Host/Dockerfile -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} ./publish
-          docker push ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.full_release_tag }}
+          docker push ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
 
   deploy-gitops:
     runs-on: ubuntu-latest
@@ -296,3 +307,4 @@ jobs:
           else
              echo "No new commits to push to GitOps repository."
           fi
+
