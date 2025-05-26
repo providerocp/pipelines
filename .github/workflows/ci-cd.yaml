@@ -230,11 +230,11 @@ jobs:
         run: |
           docker build -f src/BM.Account.Host/Dockerfile \
           -t ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
-          --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} #${{ needs.tag_and_release.outputs.semver_base }} \
+          --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
           --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-          --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.semver_base }} #${{ steps.gitversion.outputs.AssemblySemVer }} \
-          --build-arg INFORMATIONAL_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} #${{ steps.gitversion.outputs.InformationalVersion }} .
+          --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
+          --build-arg INFORMATIONAL_VERSION=${{ steps.gitversion.outputs.InformationalVersion }} .
 
           #docker build -f src/BM.Account.Host/Dockerfile -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} ./publish
           docker push ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
@@ -310,4 +310,3 @@ jobs:
           else
              echo "No new commits to push to GitOps repository."
           fi
-
