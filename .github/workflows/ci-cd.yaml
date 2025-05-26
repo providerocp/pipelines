@@ -191,7 +191,7 @@ jobs:
     # Só executa se a tag simplificada foi gerada (ambientes dev/stg)
     if: needs.tag_and_release.outputs.simplified_image_tag != '' && (inputs.environment == 'dev' || inputs.environment == 'stg')
     outputs:
-      docker_image_with_tag: ghcr.io/${{ github.repository_owner }}/${{ inputs.repository }}:${{ needs.tag_and_release.outputs.simplified_image_tag }}
+      docker_image_with_tag: ghcr.io/${{ github.repository_owner }}/${{ inputs.repository }}:${{ needs.tag_and_release.outputs.full_release_tag }}
       # Output do semver base para usar no AssemblyVersion se necessário, ou a tag completa para InformationalVersion
       image_tag_version: ${{ needs.tag_and_release.outputs.simplified_image_tag }}
       semver_base_version: ${{ needs.tag_and_release.outputs.semver_base }}
@@ -205,54 +205,6 @@ jobs:
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
 
-      - name: Install GitVersion
-        uses: gittools/actions/gitversion/setup@v0.10.2
-        with:
-          versionSpec: "5.x"
-
-      - name: Checkout
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
-
-      - name: Determine Version
-        id: gitversion
-        uses: gittools/actions/gitversion/execute@v0.10.2
-        with:
-          useConfigFile: true
-          configFilePath: ./GitVersion.yml
-
-      - name: Version
-        run: |
-          echo Building ${{ steps.gitversion.outputs.SemVer }}
-
-      # - name: Restore
-      #   run: dotnet restore
-
-      # - name: Build
-      #   run: dotnet build -c Release --no-restore --no-incremental /p:Version=${{ steps.gitversion.outputs.AssemblySemVer }} /p:AssemblyVersion=${{ steps.gitversion.outputs.AssemblySemVer }} /p:InformationalVersion=${{ steps.gitversion.outputs.InformationalVersion }}
-
-      # - name: Pack
-      #   run: |
-      #     dotnet pack src/BM.Account.Abstractions/BM.Account.Abstractions.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-      #     dotnet pack src/BM.Account.Client/BM.Account.Client.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-      #     dotnet pack src/BM.Account.Data/BM.Account.Data.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-      #     dotnet pack src/BM.Account.Events/BM.Account.Events.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-      #     dotnet pack src/BM.Account.Package/BM.Account.Packets.csproj -c Release --no-build /p:PackageVersion=${{ steps.gitversion.outputs.SemVer }}
-
-      # - name: Push
-      #   run: |
-      #     dotnet nuget push src/BM.Account.Abstractions/bin/Release/BM.Account.Abstractions.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-      #     dotnet nuget push src/BM.Account.Client/bin/Release/BM.Account.Client.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-      #     dotnet nuget push src/BM.Account.Data/bin/Release/BM.Account.Data.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-      #     dotnet nuget push src/BM.Account.Events/bin/Release/BM.Account.Events.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-      #     dotnet nuget push src/BM.Account.Package/bin/Release/BM.Account.Packets.${{ steps.gitversion.outputs.SemVer }}.nupkg --skip-duplicate -s https://nuget.pkg.github.com/pipabingomaker/index.json -k ${{ secrets.GH_TOKEN }}
-      #   env:
-      #     GITHUB_TOKEN: ${{ secrets.GH_TOKEN }}
-
-      # - name: Publish Server binaries
-      #   run: dotnet publish -c Release -o publish --no-build src/BM.Account.Host
-
       - name: Login to GitHub Container Registry
         uses: docker/login-action@v2
         with:
@@ -263,15 +215,15 @@ jobs:
       - name: Build Container Image
         run: |
           docker build -f src/BM.Account.Host/Dockerfile \
-          -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} \
-          --build-arg PACKAGE_VERSION=${{ steps.gitversion.outputs.SemVer }} \
+          -t ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.full_release_tag }} \
+          --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
           --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ASSEMBLY_VERSION=${{ steps.gitversion.outputs.AssemblySemVer }} \
           --build-arg INFORMATIONAL_VERSION=${{ steps.gitversion.outputs.InformationalVersion }} .
 
           #docker build -f src/BM.Account.Host/Dockerfile -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} ./publish
-          docker push ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }}
+          docker push ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.full_release_tag }}
 
   deploy-gitops:
     runs-on: ubuntu-latest
@@ -344,4 +296,3 @@ jobs:
           else
              echo "No new commits to push to GitOps repository."
           fi
-
