@@ -203,7 +203,7 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    if: ${{ inputs.test == 'true' }}
+    if: ${{ inputs.test == true }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
