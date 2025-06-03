@@ -23,7 +23,8 @@ on:
       test:
         description: "Executar testes unitários? (true/false)"
         required: false
-        default: 'false'
+        default: false
+        type: boolean
     secrets:
       GH_TOKEN: 
         required: true
