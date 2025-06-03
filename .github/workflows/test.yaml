@@ -1,0 +1,38 @@
+name: Test Application
+
+on:
+  workflow_call:
+    inputs:
+      test:
+        description: "Executar testes unitários? (true/false)"
+        required: false
+        default: false
+        type: boolean
+    secrets:
+      GH_TOKEN:
+        required: true
+
+jobs:
+  test:
+    if: ${{ inputs.test == true }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install .NET 6
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "6.0.x"
+          source-url: https://nuget.pkg.github.com/pipabingomaker/index.json
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build -c Release --no-restore --no-incremental
+
+      - name: Run Tests
+        run: dotnet test --no-build --verbosity normal
