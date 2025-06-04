@@ -27,7 +27,11 @@ on:
       image_repository:
         description: "Repositório de imagens ghcr"
         required: true 
-        type: string              
+        type: string   
+      fallbackTag:
+        description: "Tag de fallback para o semver, caso não haja tags no repositório"
+        required: true
+        type: string
     secrets:
       GH_TOKEN: 
         required: true
@@ -114,7 +118,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           branch: main
           noVersionBumpBehavior: patch
-          fallbackTag: 0.15.0-dev.2
+          fallbackTag: ${{ inputs.fallbackTag }}
 
       - name: Prepare Tag Components
         id: tag_components
