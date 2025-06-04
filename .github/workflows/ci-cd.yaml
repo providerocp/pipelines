@@ -20,6 +20,14 @@ on:
         description: "Nome da branch do PR (ex: feat/my-feature) - necessário para a tag simplificada."
         required: true 
         type: string
+      project_name:
+        description: "Nome do projeto"
+        required: true 
+        type: string    
+      image_repository:
+        description: "Repositório de imagens ghcr"
+        required: true 
+        type: string              
     secrets:
       GH_TOKEN: 
         required: true
@@ -227,16 +235,15 @@ jobs:
 
       - name: Build Container Image
         run: |
-          docker build -f src/BM.Account.Host/Dockerfile \
-          -t ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
+          docker build -f src/${{ inputs.project_name }}.Host/Dockerfile \
+          -t ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
           --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
           --build-arg INFORMATIONAL_VERSION=${{ steps.gitversion.outputs.InformationalVersion }} .
 
-          #docker build -f src/BM.Account.Host/Dockerfile -t ghcr.io/pipabingomaker/account:${{ steps.gitversion.outputs.SemVer }} ./publish
-          docker push ghcr.io/pipabingomaker/account:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
+          docker push ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
 
   deploy-gitops:
     runs-on: ubuntu-latest
