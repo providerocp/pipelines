@@ -241,10 +241,10 @@ jobs:
         run: |
           docker build -f src/${{ inputs.project_name }}.Host/Dockerfile \
           -t ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
-          --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
+          --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-          --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
+          --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg INFORMATIONAL_VERSION=${{ steps.gitversion.outputs.InformationalVersion }} .
 
           docker push ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
