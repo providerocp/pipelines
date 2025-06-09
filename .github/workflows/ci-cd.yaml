@@ -164,14 +164,14 @@ jobs:
           fi
           echo "tag=$FINAL_TAG_VALUE" >> $GITHUB_OUTPUT
 
-      - name: Sanitize Tag for Docker (replace + with -)
+      - name: Sanitize Tag for Docker (replace + and _ with -)
         id: sanitize_docker_tag
         if: steps.final_tag.outputs.tag != ''
         run: |
           FULL_TAG="${{ steps.final_tag.outputs.tag }}"
           # Replace '+' with '-' for Docker compatibility
           # Also ensure no leading 'v' if present (for prod tags)
-          SANITIZED_TAG=$(echo "$FULL_TAG" | sed 's/^+v//' | sed 's/+/-/g')
+          SANITIZED_TAG=$(echo "$FULL_TAG" | sed 's/^+_v//' | sed 's/+/-/g')
           echo "docker_tag=$SANITIZED_TAG" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
