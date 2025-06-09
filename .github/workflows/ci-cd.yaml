@@ -164,7 +164,7 @@ jobs:
           fi
           echo "tag=$FINAL_TAG_VALUE" >> $GITHUB_OUTPUT
 
-      - name: Sanitize Tag for Docker (replace + and _ with -)
+      - name: Sanitize Tag for Docker (replace + with -)
         id: sanitize_docker_tag
         if: steps.final_tag.outputs.tag != ''
         run: |
@@ -244,7 +244,7 @@ jobs:
           --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
           --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-          --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
+          --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.semver_base }} \
           --build-arg INFORMATIONAL_VERSION=${{ steps.gitversion.outputs.InformationalVersion }} .
 
           docker push ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
