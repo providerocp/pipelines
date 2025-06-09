@@ -171,7 +171,7 @@ jobs:
           FULL_TAG="${{ steps.final_tag.outputs.tag }}"
           # Replace '+' with '-' for Docker compatibility
           # Also ensure no leading 'v' if present (for prod tags)
-          SANITIZED_TAG=$(echo "$FULL_TAG" | sed 's/^+_v//' | sed 's/+/-/g')
+          SANITIZED_TAG=$(echo "$FULL_TAG" | sed 's/^+v//' | sed 's/+/-/g' | sed 's/_/-/g')
           echo "docker_tag=$SANITIZED_TAG" >> $GITHUB_OUTPUT
 
       - name: Create GitHub Release
