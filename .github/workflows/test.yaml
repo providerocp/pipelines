@@ -8,6 +8,11 @@ on:
         required: false
         default: false
         type: boolean
+      dotnet-version:
+        description: "Versão do .NET a ser utilizada"
+        required: false
+        default: '6.0.x'
+        type: string
     secrets:
       GH_TOKEN:
         required: true
@@ -23,7 +28,7 @@ jobs:
       - name: Install .NET 6
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "6.0.x"
+          dotnet-version: ${{ inputs.dotnet-version || '6.0.x' }}
           source-url: https://nuget.pkg.github.com/pipabingomaker/index.json
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
