@@ -25,7 +25,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install .NET 6
+      - name: Install .NET ${{ inputs.dotnet-version || '6.0.x' }}
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ inputs.dotnet-version || '6.0.x' }}
