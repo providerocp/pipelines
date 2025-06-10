@@ -21,6 +21,22 @@ jobs:
   test:
     if: ${{ inputs.test == true }}
     runs-on: ubuntu-latest
+
+    services:
+      sql:
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        env:
+          ACCEPT_EULA: Y
+          SA_PASSWORD: yourStrong(!)Password
+        ports:
+          - 1433
+      azurite:
+        image: mcr.microsoft.com/azure-storage/azurite
+        ports:
+          - 10000:10000
+          - 10001:10001
+          - 10002:10002
+              
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
