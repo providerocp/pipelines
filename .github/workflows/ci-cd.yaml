@@ -36,7 +36,12 @@ on:
         description: "Versão do .NET a ser utilizada"
         required: false
         default: '6.0.x'
-        type: string        
+        type: string
+      path_dockerfile:
+        description: "Caminho para o Dockerfile (padrão: ./)"
+        required: false
+        default: './'
+        type: string    
     secrets:
       GH_TOKEN: 
         required: true
@@ -244,7 +249,7 @@ jobs:
 
       - name: Build Container Image
         run: |
-          docker build -f src/${{ inputs.project_name }}.Host/Dockerfile \
+          docker build -f ${{ inputs.path_dockerfile }} \
           -t ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
