@@ -32,6 +32,11 @@ on:
         description: "Tag de fallback para o semver, caso não haja tags no repositório"
         required: true
         type: string
+      dotnet-version:
+        description: "Versão do .NET a ser utilizada"
+        required: false
+        default: '6.0.x'
+        type: string        
     secrets:
       GH_TOKEN: 
         required: true
@@ -222,10 +227,10 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
 
-      - name: Install .Net 6
+      - name: Install .Net ${{ inputs.dotnet-version || '6.0.x' }}
         uses: actions/setup-dotnet@v2
         with:
-          dotnet-version: "6.0.x"
+          dotnet-version: ${{ inputs.dotnet-version || '6.0.x' }}
           source-url: https://nuget.pkg.github.com/pipabingomaker/index.json
         env:
           NUGET_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
