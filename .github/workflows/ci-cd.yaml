@@ -255,7 +255,7 @@ jobs:
             DOCKERFILE_PATH="$PATH_DOCKERFILE_INPUT"
             echo "veio PATH_DOCKERFILE_INPUT"
           else
-            DOCKERFILE_PATH="src/${PROJECT_NAME}.Host/Dockerfile"
+            DOCKERFILE_PATH="src/${{ inputs.project_name }}.Host/Dockerfile"
             echo "veio path src/"
           fi
 
