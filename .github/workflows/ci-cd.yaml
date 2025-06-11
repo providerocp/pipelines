@@ -253,14 +253,11 @@ jobs:
           # Decide o caminho dentro do próprio script
           if [[ -n "$PATH_DOCKERFILE_INPUT" ]]; then
             DOCKERFILE_PATH="$PATH_DOCKERFILE_INPUT"
-            echo "veio PATH_DOCKERFILE_INPUT"
           else
             DOCKERFILE_PATH="src/${{ inputs.project_name }}.Host/Dockerfile"
-            echo "veio path src/"
           fi
 
           echo "Dockerfile: $DOCKERFILE_PATH"
-          echo "nada"
           docker build -f "$DOCKERFILE_PATH" \
           -t ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
