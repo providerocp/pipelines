@@ -255,6 +255,7 @@ jobs:
             echo "DOCKERFILE_PATH=src/${{ inputs.project_name }}.Host/Dockerfile" >>"$GITHUB_ENV"
           fi
           echo $DOCKERFILE_PATH
+          echo "nada"
           docker build -f "$DOCKERFILE_PATH" \
           -t ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
