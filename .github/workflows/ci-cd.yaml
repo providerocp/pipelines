@@ -247,14 +247,19 @@ jobs:
           password: ${{ secrets.GH_TOKEN }}
 
       - name: Build Container Image
+        env:
+          PATH_DOCKERFILE_INPUT: ${{ inputs.path_dockerfile }}  
         run: |
-          # Se o input for preenchido, usa-o; caso contrário, monta o caminho legado.
-          if [[ -n "${{ inputs.path_dockerfile }}" ]]; then
-            echo "DOCKERFILE_PATH=${{ inputs.path_dockerfile }}" >>"$GITHUB_ENV"
+          # Decide o caminho dentro do próprio script
+          if [[ -n "$PATH_DOCKERFILE_INPUT" ]]; then
+            DOCKERFILE_PATH="$PATH_DOCKERFILE_INPUT"
+            echo "veio PATH_DOCKERFILE_INPUT"
           else
-            echo "DOCKERFILE_PATH=src/${{ inputs.project_name }}.Host/Dockerfile" >>"$GITHUB_ENV"
+            DOCKERFILE_PATH="src/${PROJECT_NAME}.Host/Dockerfile"
+            echo "veio path src/"
           fi
-          echo $DOCKERFILE_PATH
+
+          echo "Dockerfile: $DOCKERFILE_PATH"
           echo "nada"
           docker build -f "$DOCKERFILE_PATH" \
           -t ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
