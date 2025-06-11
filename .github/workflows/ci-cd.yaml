@@ -249,7 +249,13 @@ jobs:
 
       - name: Build Container Image
         run: |
-          docker build -f ${{ inputs.path_dockerfile }} \
+          # Se o input for preenchido, usa-o; caso contrário, monta o caminho legado.
+          if [[ -n "${{ inputs.path_dockerfile }}" ]]; then
+            echo "DOCKERFILE_PATH=${{ inputs.path_dockerfile }}" >>"$GITHUB_ENV"
+          else
+            echo "DOCKERFILE_PATH=src/${{ inputs.project_name }}.Host/Dockerfile" >>"$GITHUB_ENV"
+          fi
+          docker build -f "$DOCKERFILE_PATH" \
           -t ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
           --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
