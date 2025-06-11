@@ -40,7 +40,6 @@ on:
       path_dockerfile:
         description: "Caminho para o Dockerfile (padrão: ./)"
         required: false
-        default: './'
         type: string    
     secrets:
       GH_TOKEN: 
