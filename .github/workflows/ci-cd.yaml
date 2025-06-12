@@ -301,7 +301,7 @@ jobs:
           APP_MANIFEST_FILE="aws/apps/overlay/${{ inputs.environment }}/bm-${{ inputs.repository }}/app.yaml"
           if [ ! -f "$APP_MANIFEST_FILE" ]; then echo "::error::Manifest $APP_MANIFEST_FILE not found."; exit 1; fi
           # Usar a tag extraída (sem o nome da imagem/registry)
-          sed -i -E "s#(${{ inputs.repository }}:)([^ ]+)#\1$IMAGE_TAG_FOR_GITOPS_UPDATE#" "$APP_MANIFEST_FILE"
+          sed -i -E "s#(${{ inputs.image_repository }}:)([^ ]+)#\1$IMAGE_TAG_FOR_GITOPS_UPDATE#" "$APP_MANIFEST_FILE"
           echo "Image tag updated in '$APP_MANIFEST_FILE'."
           git diff "$APP_MANIFEST_FILE"
 
