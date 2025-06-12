@@ -222,7 +222,7 @@ jobs:
     # Só executa se a tag simplificada foi gerada (ambientes dev/stg)
     if: needs.tag_and_release.outputs.simplified_image_tag != '' && (inputs.environment == 'dev' || inputs.environment == 'stg')
     outputs:
-      docker_image_with_tag: ghcr.io/${{ github.repository_owner }}/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
+      docker_image_with_tag: ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
       # Output do semver base para usar no AssemblyVersion se necessário, ou a tag completa para InformationalVersion
       image_tag_version: ${{ needs.tag_and_release.outputs.simplified_image_tag }}
       semver_base_version: ${{ needs.tag_and_release.outputs.semver_base }}
@@ -304,6 +304,9 @@ jobs:
           sed -i -E "s#(${{ inputs.image_repository }}:)([^ ]+)#\1$IMAGE_TAG_FOR_GITOPS_UPDATE#" "$APP_MANIFEST_FILE"
           echo "Image tag updated in '$APP_MANIFEST_FILE'."
           git diff "$APP_MANIFEST_FILE"
+          cat $APP_MANIFEST_FILE
+          echo $IMAGE_TAG_FOR_GITOPS_UPDATE
+          
 
       - name: Configure Git for GitOps repo
         env:
