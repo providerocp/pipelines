@@ -19,6 +19,7 @@ on:
       pr_head_ref:
         description: "Nome da branch do PR (ex: feat/my-feature) - necessário para a tag simplificada."
         required: false 
+        default: pipa/main
         type: string
       project_name:
         description: "Nome do projeto"
