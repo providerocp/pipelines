@@ -18,7 +18,7 @@ on:
         default: 0
       pr_head_ref:
         description: "Nome da branch do PR (ex: feat/my-feature) - necessário para a tag simplificada."
-        required: true 
+        required: false 
         type: string
       project_name:
         description: "Nome do projeto"
