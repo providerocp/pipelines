@@ -8,7 +8,7 @@ on:
         required: true
         type: string
       environment:
-        description: "Ambiente de deploy (dev, stg, prod)"
+        description: "Ambiente de deploy (dev, stg, hml, prod)"
         required: true
         type: string
       current_pr_number:
@@ -96,7 +96,7 @@ jobs:
         id: environment_info
         run: |
           ENV_FROM_INPUT="${{ inputs.environment }}"
-          if [[ ! "$ENV_FROM_INPUT" =~ ^(dev|stg|prod)$ ]]; then
+          if [[ ! "$ENV_FROM_INPUT" =~ ^(dev|stg|hml|prod)$ ]]; then
             echo "::error::Input environment '$ENV_FROM_INPUT' is not valid (must be dev, stg, or prod)."
             exit 1
           fi
@@ -221,7 +221,7 @@ jobs:
     runs-on: ubuntu-latest
     needs: [tag_and_release]
     # Só executa se a tag simplificada foi gerada (ambientes dev/stg)
-    if: needs.tag_and_release.outputs.simplified_image_tag != '' && (inputs.environment == 'dev' || inputs.environment == 'stg')
+    if: needs.tag_and_release.outputs.simplified_image_tag != '' && (inputs.environment == 'dev' || inputs.environment == 'stg' || inputs.environment == 'hml')
     outputs:
       docker_image_with_tag: ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
       # Output do semver base para usar no AssemblyVersion se necessário, ou a tag completa para InformationalVersion
