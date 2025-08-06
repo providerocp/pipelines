@@ -128,7 +128,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           branch: pipa/main
           noVersionBumpBehavior: patch
-          fallbackTag: ${{ inputs.fallbackTag }}
+          #fallbackTag: ${{ inputs.fallbackTag }}
 
       - name: Prepare Tag Components
         id: tag_components
