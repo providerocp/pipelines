@@ -149,7 +149,7 @@ jobs:
 
       - name: Calculate Incremental Build Number (for dev/stg)
         id: build_number
-        if: steps.tag_components.outputs.env_for_tag == 'dev' || steps.tag_components.outputs.env_for_tag == 'stg'
+        if: steps.tag_components.outputs.env_for_tag == 'dev' || steps.tag_components.outputs.env_for_tag == 'stg' || steps.tag_components.outputs.env_for_tag == 'hml'
         run: |
           git fetch --tags --force
           ENV_TAG_PART="${{ steps.tag_components.outputs.env_for_tag }}"
