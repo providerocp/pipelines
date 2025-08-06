@@ -123,7 +123,7 @@ jobs:
 
       - name: Get Next SemVer Version
         id: semver
-        uses: ietf-tools/semver-action@v1
+        uses: ietf-tools/semver-action@v1.10.2
         with:
           token: ${{ secrets.GH_TOKEN }}
           branch: pipa/main
