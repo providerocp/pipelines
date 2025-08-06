@@ -204,7 +204,7 @@ jobs:
 
       - name: Construct Simplified Image Tag (for dev/stg)
         id: construct_simplified_tag
-        if: (steps.tag_components.outputs.env_for_tag == 'dev' || steps.tag_components.outputs.env_for_tag == 'stg') && steps.build_number.outputs.ci_num != ''
+        if: (steps.tag_components.outputs.env_for_tag == 'dev' || steps.tag_components.outputs.env_for_tag == 'stg' || steps.tag_components.outputs.env_for_tag == 'hml') && steps.build_number.outputs.ci_num != ''
         run: |
           SEMVER_BASE="${{ steps.tag_components.outputs.semver }}"
           BRANCH_NAME_ORIGINAL_SANE="${{ steps.tag_components.outputs.branch_name_sanitized }}"
@@ -220,7 +220,7 @@ jobs:
   build:
     runs-on: ubuntu-latest
     needs: [tag_and_release]
-    # Só executa se a tag simplificada foi gerada (ambientes dev/stg)
+    # Só executa se a tag simplificada foi gerada (ambientes dev/stg/hml)
     if: needs.tag_and_release.outputs.simplified_image_tag != '' && (inputs.environment == 'dev' || inputs.environment == 'stg' || inputs.environment == 'hml')
     outputs:
       docker_image_with_tag: ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
