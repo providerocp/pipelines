@@ -31,7 +31,7 @@ on:
         type: string   
       fallbackTag:
         description: "Tag de fallback para o semver, caso não haja tags no repositório"
-        required: true
+        required: false
         type: string
       dotnet-version:
         description: "Versão do .NET a ser utilizada"
