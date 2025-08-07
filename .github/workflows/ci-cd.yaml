@@ -31,7 +31,7 @@ on:
         type: string   
       fallbackTag:
         description: "Tag de fallback para o semver, caso não haja tags no repositório"
-        required: false
+        required: true
         type: string
       dotnet-version:
         description: "Versão do .NET a ser utilizada"
@@ -128,7 +128,7 @@ jobs:
           token: ${{ secrets.GH_TOKEN }}
           branch: pipa/main
           noVersionBumpBehavior: patch
-          #fallbackTag: ${{ inputs.fallbackTag }}
+          fallbackTag: ${{ inputs.fallbackTag }}
 
       - name: Prepare Tag Components
         id: tag_components
