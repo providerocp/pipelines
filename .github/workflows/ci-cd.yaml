@@ -103,16 +103,6 @@ jobs:
           echo "env=$ENV_FROM_INPUT" >> $GITHUB_OUTPUT
           echo "Workflow triggered for environment: $ENV_FROM_INPUT"
 
-      - name: Detect trigger ref (tag vs branch)
-        id: refctx
-        run: |
-          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
-            echo "is_tag=true" >> $GITHUB_OUTPUT
-            echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
-          else
-            echo "is_tag=false" >> $GITHUB_OUTPUT
-          fi          
-
       - name: Check for Existing Tags
         id: check_tags
         run: |
@@ -133,7 +123,6 @@ jobs:
 
       - name: Get Next SemVer Version
         id: semver
-        if: steps.refctx.outputs.is_tag != 'true'
         uses: ietf-tools/semver-action@v1
         with:
           token: ${{ secrets.GH_TOKEN }}
