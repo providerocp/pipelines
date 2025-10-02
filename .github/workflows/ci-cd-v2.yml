@@ -298,7 +298,7 @@ jobs:
           if [[ -n "$PATH_DOCKERFILE_INPUT" ]]; then
             DOCKERFILE_PATH="$PATH_DOCKERFILE_INPUT"
           else
-            DOCKERFILE_PATH="src/${{ inputs.project_name }}.Host/Dockerfile"
+            DOCKERFILE_PATH="src/${{ inputs.project_name }}/Dockerfile"
           fi
 
           echo "Dockerfile: $DOCKERFILE_PATH"
