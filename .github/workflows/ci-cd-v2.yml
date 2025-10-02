@@ -141,13 +141,13 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
           branch: pipa/main
-          noVersionBumpBehavior: patch
           noNewCommitBehavior: patch
+          noVersionBumpBehavior: patch
           minorList: feat, feature
           patchList: fix, bugfix, perf, refactor, test, tests
           patchAll: false
+          skipInvalidTags: true
           maxTagsToFetch: 10
-          skipInvalidTags: false
           # ⚠️ usar semver puro (ex.: 0.7.0) no chamador
           fallbackTag: ${{ inputs.fallbackTag }}
 
