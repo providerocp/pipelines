@@ -1,0 +1,312 @@
+name: Consolidated CI, Build, and Deploy Application
+
+on:
+  workflow_call:
+    inputs:
+      repository:
+        description: "Nome do repositório (ex: account, auth, etc.) - usado para nomear artefatos e encontrar manifestos."
+        required: true
+        type: string
+      environment:
+        description: "Ambiente de deploy (dev, stg, hml, prod)"
+        required: true
+        type: string
+      current_pr_number:
+        description: "ID do PR atual (usado pelo job remove-labels, se aplicável)"
+        required: false
+        type: number
+        default: 0
+      pr_head_ref:
+        description: "Nome da branch do PR (ex: feat/my-feature) - necessário para a tag simplificada."
+        required: false
+        default: pipa/main
+        type: string
+      project_name:
+        description: "Nome do projeto"
+        required: true
+        type: string
+      image_repository:
+        description: "Repositório de imagens ghcr"
+        required: true
+        type: string
+      fallbackTag:
+        description: "Tag de fallback para o semver, caso não haja tags no repositório (usar semver puro, ex.: 0.7.0)"
+        required: true
+        type: string
+      dotnet-version:
+        description: "Versão do .NET a ser utilizada"
+        required: false
+        default: '6.0.x'
+        type: string
+      path_dockerfile:
+        description: "Caminho para o Dockerfile (padrão: ./)"
+        required: false
+        type: string
+    secrets:
+      GH_TOKEN:
+        required: true
+
+jobs:
+  remove-labels:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Remover labels "deploy dev" de outros PRs
+        env:
+          PR_NUMBER_TO_KEEP_LABEL: ${{ inputs.current_pr_number }}
+          TARGET_REPO: ${{ github.repository }}
+        run: |
+          echo "Verificando PRs abertas para o repositório: $TARGET_REPO"
+          response=$(curl -s -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+                            -H "Accept: application/vnd.github.v3+json" \
+                            "https://api.github.com/repos/$TARGET_REPO/pulls?state=open")
+          echo "$response" | jq -r --arg CURRENT_PR_ARG "$PR_NUMBER_TO_KEEP_LABEL" \
+              '.[] | select(.number != ($CURRENT_PR_ARG | tonumber)) | select(.labels[].name == "deploy dev") | .number' \
+              | while read -r pr_number_to_clean; do
+              echo "Removendo label 'deploy dev' do PR #$pr_number_to_clean no repositório $TARGET_REPO"
+              curl -s -X DELETE -H "Authorization: token ${{ secrets.GH_TOKEN }}" \
+                  -H "Accept: application/vnd.github.v3+json" \
+                  "https://api.github.com/repos/$TARGET_REPO/issues/$pr_number_to_clean/labels/deploy%20dev"
+              echo "Label removida com sucesso para o PR #$pr_number_to_clean"
+          done
+
+  tag_and_release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: read
+    outputs:
+      simplified_image_tag: ${{ steps.construct_simplified_tag.outputs.image_tag }}
+      full_release_tag: ${{ steps.final_tag.outputs.tag }}
+      docker_tag_sanitized: ${{ steps.sanitize_docker_tag.outputs.docker_tag }}
+      semver_base: ${{ steps.semver_base.outputs.semver }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: true
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set Environment Info from Input
+        id: environment_info
+        run: |
+          ENV_FROM_INPUT="${{ inputs.environment }}"
+          if [[ ! "$ENV_FROM_INPUT" =~ ^(dev|stg|hml|prod)$ ]]; then
+            echo "::error::Input environment '$ENV_FROM_INPUT' is not valid (must be dev, stg, hml or prod)."
+            exit 1
+          fi
+          echo "env=$ENV_FROM_INPUT" >> $GITHUB_OUTPUT
+          echo "Workflow triggered for environment: $ENV_FROM_INPUT"
+
+      - name: Detect trigger ref (tag vs branch)
+        id: refctx
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/* ]]; then
+            echo "is_tag=true" >> $GITHUB_OUTPUT
+            echo "tag_name=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+            echo "Detected tag trigger: ${GITHUB_REF#refs/tags/}"
+          else
+            echo "is_tag=false" >> $GITHUB_OUTPUT
+            echo "Detected non-tag trigger (likely workflow_call from branch)."
+          fi
+
+      # Só em caminho "branch" (não-tag): utilidades de semver
+      - name: Check for Existing Tags
+        id: check_tags
+        if: steps.refctx.outputs.is_tag != 'true'
+        run: |
+          if [ "$(git tag | wc -l)" -eq 0 ]; then
+            echo "has_no_tags=true" >> $GITHUB_OUTPUT
+          else
+            echo "has_no_tags=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Create Initial Tag 0.0.0 if no tags exist
+        if: steps.refctx.outputs.is_tag != 'true' && steps.check_tags.outputs.has_no_tags == 'true'
+        run: |
+          echo "No tags found. Creating initial tag 0.0.0"
+          git tag 0.0.0
+          git push origin 0.0.0
+          echo "Initial tag 0.0.0 created and pushed."
+        continue-on-error: true
+
+      - name: Get Next SemVer Version
+        id: semver
+        if: steps.refctx.outputs.is_tag != 'true'
+        uses: ietf-tools/semver-action@v1
+        with:
+          token: ${{ secrets.GH_TOKEN }}
+          branch: pipa/main
+          noNewCommitBehavior: patch
+          noVersionBumpBehavior: patch
+          minorList: feat, feature
+          patchList: fix, bugfix, perf, refactor, test, tests
+          patchAll: false
+          skipInvalidTags: true
+          maxTagsToFetch: 10
+          # ⚠️ usar semver puro (ex.: 0.7.0) no chamador
+          fallbackTag: ${{ inputs.fallbackTag }}
+
+      - name: Prepare Tag Components
+        id: tag_components
+        if: steps.refctx.outputs.is_tag != 'true'
+        run: |
+          SEMVER_VERSION="${{ steps.semver.outputs.nextStrict }}"
+          BRANCH_NAME_FROM_INPUT="${{ inputs.pr_head_ref }}"
+          if [ -z "$BRANCH_NAME_FROM_INPUT" ]; then
+            echo "::error::Input pr_head_ref is empty. It's required for tag construction."
+            exit 1
+          fi
+          BRANCH_NAME_SANITIZED=$(echo "$BRANCH_NAME_FROM_INPUT" | sed 's|/|_|g' | sed 's|[^a-zA-Z0-9_.-]||g')
+          ENV_FOR_TAG="${{ steps.environment_info.outputs.env }}"
+          CURRENT_DATE=$(date +'%Y%m%d')
+          echo "semver=$SEMVER_VERSION" >> $GITHUB_OUTPUT
+          echo "branch_name_sanitized=$BRANCH_NAME_SANITIZED" >> $GITHUB_OUTPUT
+          echo "env_for_tag=$ENV_FOR_TAG" >> $GITHUB_OUTPUT
+          echo "current_date=$CURRENT_DATE" >> $GITHUB_OUTPUT
+
+      - name: Calculate Incremental Build Number (for dev/stg/hml)
+        id: build_number
+        if: steps.refctx.outputs.is_tag != 'true' && (steps.tag_components.outputs.env_for_tag == 'dev' || steps.tag_components.outputs.env_for_tag == 'stg' || steps.tag_components.outputs.env_for_tag == 'hml')
+        run: |
+          git fetch --tags --force
+          ENV_TAG_PART="${{ steps.tag_components.outputs.env_for_tag }}"
+          DATE_TAG_PART="${{ steps.tag_components.outputs.current_date }}"
+          LAST_CI_NUM=$(git tag | grep -E "^[0-9]+\.[0-9]+\.[0-9]+-pipa\..*\.$ENV_TAG_PART\+$DATE_TAG_PART\.ci\.[0-9]+$" | sed -n "s/.*\.ci\.\([0-9]*\)$/\1/p" | sort -rn | head -n 1)
+          if [ -z "$LAST_CI_NUM" ]; then NEXT_CI_NUM=1; else NEXT_CI_NUM=$((LAST_CI_NUM + 1)); fi
+          echo "ci_num=$NEXT_CI_NUM" >> $GITHUB_OUTPUT
+
+      # Passo unificado de tag final (usa a tag do gatilho quando for trigger por tag)
+      - name: Final tag
+        id: final_tag
+        run: |
+          if [ "${{ steps.refctx.outputs.is_tag }}" = "true" ]; then
+            echo "tag=${{ steps.refctx.outputs.tag_name }}" >> $GITHUB_OUTPUT
+          else
+            SEMVER="${{ steps.tag_components.outputs.semver }}"
+            ENV="${{ steps.tag_components.outputs.env_for_tag }}"
+            if [ "$ENV" = "prod" ]; then
+              echo "tag=v$SEMVER" >> $GITHUB_OUTPUT
+            else
+              BRANCH="${{ steps.tag_components.outputs.branch_name_sanitized }}"
+              DATE="${{ steps.tag_components.outputs.current_date }}"
+              CI_NUM="${{ steps.build_number.outputs.ci_num }}"
+              if [ -z "$CI_NUM" ]; then echo "::error::CI Number not calculated for $ENV"; exit 1; fi
+              echo "tag=$SEMVER-pipa.$BRANCH.$ENV+$DATE.ci.$CI_NUM" >> $GITHUB_OUTPUT
+            fi
+          fi
+
+      - name: Sanitize Tag for Docker (replace + with -)
+        id: sanitize_docker_tag
+        run: |
+          FULL_TAG="${{ steps.final_tag.outputs.tag }}"
+          # Remove prefix 'v' e troca '+' por '-' (compatibilidade Docker); '_' por '-'
+          SANITIZED=$(echo "$FULL_TAG" | sed 's/^v//' | sed 's/+/-/g' | sed 's/_/-/g')
+          echo "docker_tag=$SANITIZED" >> $GITHUB_OUTPUT
+
+      # Define um semver base confiável para usos posteriores (branch usa semver-action; tag extrai do prefixo)
+      - name: Compute SemVer base for outputs
+        id: semver_base
+        run: |
+          if [ "${{ steps.refctx.outputs.is_tag }}" = "true" ]; then
+            TAG="${{ steps.final_tag.outputs.tag }}"
+            TAG="${TAG#v}"
+            if echo "$TAG" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+'; then
+              BASE=$(echo "$TAG" | sed -E 's/^([0-9]+\.[0-9]+\.[0-9]+).*/\1/')
+              echo "semver=$BASE" >> $GITHUB_OUTPUT
+            else
+              echo "semver=0.0.0" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "semver=${{ steps.tag_components.outputs.semver }}" >> $GITHUB_OUTPUT
+          fi
+
+      # Evita criar release quando o gatilho já foi uma tag (pode já existir o release)
+      - name: Create GitHub Release
+        if: steps.refctx.outputs.is_tag != 'true'
+        uses: actions/github-script@v6
+        with:
+          github-token: ${{ secrets.GH_TOKEN }}
+          script: |
+            const tagName = "${{ steps.final_tag.outputs.tag }}";
+            const releaseName = `Release ${tagName}`;
+            const isPrerelease = "${{ steps.environment_info.outputs.env }}" !== "prod";
+            await github.rest.repos.createRelease({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              tag_name: tagName,
+              name: releaseName,
+              draft: false,
+              prerelease: isPrerelease,
+              generate_release_notes: true
+            });
+
+      - name: Construct Simplified Image Tag
+        id: construct_simplified_tag
+        if: inputs.environment != 'prod'
+        run: |
+          if [ "${{ steps.refctx.outputs.is_tag }}" = "true" ]; then
+            # Reusa a tag sanitizada quando o trigger foi por tag
+            echo "image_tag=${{ steps.sanitize_docker_tag.outputs.docker_tag }}" >> $GITHUB_OUTPUT
+          else
+            SEMVER_BASE="${{ steps.tag_components.outputs.semver }}"
+            BRANCH_NAME_ORIGINAL_SANE="${{ steps.tag_components.outputs.branch_name_sanitized }}"
+            CI_NUMBER="${{ steps.build_number.outputs.ci_num }}"
+            BRANCH_FOR_SIMPLIFIED_TAG=$(echo "$BRANCH_NAME_ORIGINAL_SANE" \
+              | sed -E 's/^(feat|fix|chore|ci|docs|perf|refactor|revert|style|test)_//i' \
+              | sed 's/_/-/g' \
+              | sed 's|[^a-zA-Z0-9-]||g')
+            [ -z "$BRANCH_FOR_SIMPLIFIED_TAG" ] && BRANCH_FOR_SIMPLIFIED_TAG="branch"
+            echo "image_tag=$SEMVER_BASE-$BRANCH_FOR_SIMPLIFIED_TAG.$CI_NUMBER" >> $GITHUB_OUTPUT
+          fi
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [tag_and_release]
+    if: needs.tag_and_release.outputs.simplified_image_tag != '' && (inputs.environment == 'dev' || inputs.environment == 'stg' || inputs.environment == 'hml')
+    outputs:
+      docker_image_with_tag: ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
+      image_tag_version: ${{ needs.tag_and_release.outputs.simplified_image_tag }}
+      semver_base_version: ${{ needs.tag_and_release.outputs.semver_base }}
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Install .Net ${{ inputs.dotnet-version || '6.0.x' }}
+        uses: actions/setup-dotnet@v2
+        with:
+          dotnet-version: ${{ inputs.dotnet-version || '6.0.x' }}
+          source-url: https://nuget.pkg.github.com/pipabingomaker/index.json
+        env:
+          NUGET_AUTH_TOKEN: ${{ secrets.GH_TOKEN }}
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GH_TOKEN }}
+
+      - name: Build Container Image
+        env:
+          PATH_DOCKERFILE_INPUT: ${{ inputs.path_dockerfile }}
+        run: |
+          if [[ -n "$PATH_DOCKERFILE_INPUT" ]]; then
+            DOCKERFILE_PATH="$PATH_DOCKERFILE_INPUT"
+          else
+            DOCKERFILE_PATH="src/${{ inputs.project_name }}/Dockerfile"
+          fi
+
+          echo "Dockerfile: $DOCKERFILE_PATH"
+          docker build -f "$DOCKERFILE_PATH" \
+            -t ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
+            --build-arg PACKAGE_VERSION=${{ needs.tag_and_release.outputs.docker_tag_sanitized }} \
+            --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
+            --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
+            --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.semver_base }} .
+
+            #docker push ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
