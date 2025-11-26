@@ -13,6 +13,11 @@ on:
         required: false
         default: '6.0.x'
         type: string
+      sonarqube:
+        description: "Analisa o projeto no SonarQube"
+        required: false
+        type: boolean
+        default: false        
     secrets:
       GH_TOKEN:
         required: true
@@ -38,3 +43,25 @@ jobs:
 
       - name: Build
         run: dotnet build -c Release --no-restore --no-incremental
+
+  sonarqube:
+    name: SonarQube Scan
+    runs-on: ubuntu-latest
+    if: inputs.sonarqube == 'true'
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@v4
+        env:
+          SONAR_TOKEN: ${{ secrets.PROVIDER_SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.PROVIDER_SONAR_URL }}
+        with:
+          args: >
+            -Dsonar.projectKey=${{ inputs.project_name }}
+            -Dsonar.projectName=${{ inputs.project_name }}
+            -Dsonar.sources=.
+            -Dsonar.cs.opencover.reportsPaths=**/coverage.opencover.xml        
