@@ -21,6 +21,10 @@ on:
     secrets:
       GH_TOKEN:
         required: true
+      PROVIDER_SONAR_TOKEN:
+        required: false
+      PROVIDER_SONAR_URL:
+        required: false
 
 jobs:
   test:
