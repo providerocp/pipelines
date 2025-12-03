@@ -35,7 +35,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    needs: [tag_and_release]
     outputs:
       docker_image_with_tag: ghcr.io/${{ inputs.image_repository }}:${{ github.sha }}
     steps:
@@ -65,7 +64,7 @@ jobs:
             --build-arg PACKAGE_VERSION=1.0 \
             --build-arg GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
             --build-arg ENTERPRISE_GITHUB_TOKEN=${{ secrets.GH_TOKEN }} \
-            --build-arg ASSEMBLY_VERSION=${{ needs.tag_and_release.outputs.semver_base }} .
+            --build-arg ASSEMBLY_VERSION=${{ github.sha }} .
 
           docker push ghcr.io/${{ inputs.image_repository }}:${{ github.sha }}
 
