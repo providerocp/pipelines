@@ -47,15 +47,12 @@ on:
         required: true
 
 jobs:
-
   build:
     runs-on: ubuntu-latest
     needs: [tag_and_release]
     if: needs.tag_and_release.outputs.simplified_image_tag != '' && (inputs.environment == 'dev' || inputs.environment == 'stg' || inputs.environment == 'hml')
     outputs:
-      docker_image_with_tag: ghcr.io/${{ inputs.image_repository }}:${{ needs.tag_and_release.outputs.docker_tag_sanitized }}
-      image_tag_version: ${{ needs.tag_and_release.outputs.simplified_image_tag }}
-      semver_base_version: ${{ needs.tag_and_release.outputs.semver_base }}
+      docker_image_with_tag: ghcr.io/${{ inputs.image_repository }}
     steps:
       - name: Checkout Code
         uses: actions/checkout@v4
