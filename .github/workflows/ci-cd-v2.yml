@@ -141,7 +141,7 @@ jobs:
         with:
           token: ${{ secrets.GH_TOKEN }}
           branch: pipa/main
-          noNewCommitBehavior: patch
+          noNewCommitBehavior: current
           noVersionBumpBehavior: patch
           minorList: feat, feature
           patchList: fix, bugfix, perf, refactor, test, tests
