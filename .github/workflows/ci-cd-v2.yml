@@ -140,7 +140,8 @@ jobs:
         uses: ietf-tools/semver-action@v1
         with:
           token: ${{ secrets.GH_TOKEN }}
-          branch: pipa/main
+          # Usa a branch do chamador (ex.: branch do PR em dev; pipa/main em pipelines por tag/prod)
+          branch: ${{ inputs.pr_head_ref }}
           noNewCommitBehavior: patch
           noVersionBumpBehavior: patch
           minorList: feat, feature
